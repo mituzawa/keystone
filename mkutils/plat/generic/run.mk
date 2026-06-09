@@ -20,6 +20,8 @@ QEMU_FLAGS := -m $(QEMU_MEM) -smp $(QEMU_SMP) -nographic \
                 -netdev user,id=net0,net=192.168.100.1/24,dhcpstart=192.168.100.128,hostfwd=tcp::$(KEYSTONE_PORT)-:22 \
                 -device virtio-net-device,netdev=net0 \
                 -device virtio-rng-pci \
+                -chardev socket,id=chrtpm,path=/tmp/emulated_tpm/swtpm-sock \
+                -tpmdev emulator,id=tpm0,chardev=chrtpm
 
 ifneq ($(KEYSTONE_DEBUG),)
         QEMU_FLAGS += $(QEMU_DEBUG)
