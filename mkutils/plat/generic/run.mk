@@ -16,7 +16,7 @@ QEMU_FLAGS := -m $(QEMU_MEM) -smp $(QEMU_SMP) -nographic \
                 -kernel $(BUILDROOT_BUILDDIR)/images/Image \
                 -drive file=$(BUILDROOT_BUILDDIR)/images/rootfs.ext2,format=raw,id=hd0 \
                 -device virtio-blk-device,drive=hd0 \
-                -append "console=ttyS0 ro root=/dev/vda" \
+                -append "console=ttyS0 ro root=/dev/vda ima_policy=tcb" \
                 -netdev user,id=net0,net=192.168.100.1/24,dhcpstart=192.168.100.128,hostfwd=tcp::$(KEYSTONE_PORT)-:22 \
                 -device virtio-net-device,netdev=net0 \
                 -device virtio-rng-pci \
