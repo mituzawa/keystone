@@ -10,7 +10,7 @@ else
 include $(KEYSTONE)/mkutils/pkg-keystone.mk
 endif
 
-KEYSTONE_EXAMPLES_DEPENDENCIES += host-keystone-sdk keystone-runtime
+KEYSTONE_EXAMPLES_DEPENDENCIES += host-keystone-sdk keystone-runtime tpm2-tss
 ifeq ($(KEYSTONE_PLATFORM),mpfs)
 KEYSTONE_EXAMPLES_DEPENDENCIES += hss
 KEYSTONE_EXAMPLES_CONF_OPTS += -Dfw_bin=$(BINARIES_DIR)/hss-l2scratch.bin
