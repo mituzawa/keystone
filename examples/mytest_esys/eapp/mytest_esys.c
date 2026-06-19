@@ -40,8 +40,8 @@ main() {
   QuoteResult result;
   copy_from_shared(&result, quote_data.offset, sizeof(QuoteResult));
 
-  /*
   unsigned long debug;
+/*
   debug = result.quote[0];
   ocall(OCALL_PRINT_VALUE, &debug, sizeof(unsigned long), 0, 0);
   debug = result.quote[1];
@@ -50,6 +50,15 @@ main() {
   ocall(OCALL_PRINT_BUFFER, &debug, sizeof(unsigned long), 0, 0);
   debug = result.quote[3];
   ocall(OCALL_PRINT_BUFFER, &debug, sizeof(unsigned long), 0, 0);
-  */
+*/
+  debug = result.ak_pub[0];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[1];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[2];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[3];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+
   EAPP_RETURN(0);
 }

@@ -37,11 +37,17 @@ main() {
   ocall(OCALL_EXECUTE_TEST, NULL, 0, &quote_data, sizeof(struct edge_data));
   if (quote_data.size != sizeof(QuoteResult)) EAPP_RETURN(-1);
 
+  unsigned long sz = quote_data.size;
+  ocall(OCALL_PRINT_VALUE, &sz, sizeof(unsigned long), 0, 0);
+
+  unsigned long expect = sizeof(QuoteResult);
+  ocall(OCALL_PRINT_VALUE, &expect, sizeof(unsigned long), 0, 0);
+
   QuoteResult result;
   copy_from_shared(&result, quote_data.offset, sizeof(QuoteResult));
 
-  /*
   unsigned long debug;
+/*
   debug = result.quote[0];
   ocall(OCALL_PRINT_VALUE, &debug, sizeof(unsigned long), 0, 0);
   debug = result.quote[1];
@@ -50,6 +56,15 @@ main() {
   ocall(OCALL_PRINT_BUFFER, &debug, sizeof(unsigned long), 0, 0);
   debug = result.quote[3];
   ocall(OCALL_PRINT_BUFFER, &debug, sizeof(unsigned long), 0, 0);
-  */
+*/
+  debug = result.ak_pub[0];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[1];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[2];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+  debug = result.ak_pub[3];
+  ocall(OCALL_PRINT_VALUE, &debug, sizeof(debug), 0, 0);
+
   EAPP_RETURN(0);
 }

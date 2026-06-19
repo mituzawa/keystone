@@ -274,6 +274,11 @@ int test_quote(QuoteResult *result){
     printf("HOST quote[5]=%u\n", (unsigned)result->quote[5]);
 
 */
+	printf("HOST ak_pub[0]=%u\n", result->ak_pub[0]);
+    printf("HOST ak_pub[1]=%u\n", result->ak_pub[1]);
+    printf("HOST ak_pub[2]=%u\n", result->ak_pub[2]);
+    printf("HOST ak_pub[3]=%u\n", result->ak_pub[3]);
+
     Esys_Free(outPublic);
     Esys_Free(primary_Data);
     Esys_Free(primary_Hash);

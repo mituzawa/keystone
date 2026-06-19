@@ -262,14 +262,19 @@ int test_quote(QuoteResult *result){
     result->ak_pub_size = ak_offset;
     memcpy(result->ak_pub, ak_pub_buf, ak_offset);
 /*
-    printf("HOST quote[0]=%u\n", result->quote[0]);
-    printf("HOST quote[1]=%u\n", result->quote[1]);
-    printf("HOST quote[2]=%u\n", result->quote[2]);
-    printf("HOST quote[3]=%u\n", (unsigned)result->quote[3]);
-    printf("HOST quote[4]=%u\n", (unsigned)result->quote[4]);
-    printf("HOST quote[5]=%u\n", (unsigned)result->quote[5]);
-
+    printf("HOST quote_size=%u\n", result->quote_size);
+    printf("HOST quote=%u\n", result->quote);
+    printf("HOST sig_size=%u\n", result->sig_size);
+    printf("HOST signature=%u\n", result->signature);
+    printf("HOST ak_pub_size=%u\n", result->ak_pub_size);
+    printf("HOST quote[5]=%u\n", result->ak_pub);
 */
+
+	printf("HOST ak_pub[0]=%u\n", result->ak_pub[0]);
+	printf("HOST ak_pub[1]=%u\n", result->ak_pub[1]);
+	printf("HOST ak_pub[2]=%u\n", result->ak_pub[2]);
+	printf("HOST ak_pub[2]=%u\n", result->ak_pub[3]);
+
     Tss2_Sys_FlushContext(s_ctx, ak_handle);
     Tss2_Sys_FlushContext(s_ctx, primary_handle);
 
