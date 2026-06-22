@@ -1,8 +1,8 @@
-set(eapp_bin mytest)
-set(eapp_src eapp/mytest.c)
-set(host_bin mytest-runner)
-set(host_src host/host.cpp host/host.h host/quote.c host/quote.h host/mytest-runner.cpp host/verifier.h host/verifier.cpp)
-set(package_name "mytest.ke")
+set(eapp_bin quote_esys)
+set(eapp_src eapp/quote_esys_eapp.c)
+set(host_bin quote_esys-runner)
+set(host_src host/host.cpp host/host.h host/quote_esys.c host/quote.h host/quote_esys-runner.cpp host/verifier.h host/verifier.cpp)
+set(package_name "quote_esys.ke")
 set(eyrie_plugins "none")
 
 
@@ -10,7 +10,7 @@ if(NOT DEFINED fw_bin)
    set(fw_bin ../../../images/fw_jump.bin)
 endif()
 get_filename_component(fw_file ${fw_bin} NAME)
-set(package_script "./mytest-runner mytest eyrie-rt loader.bin --sm-bin ${fw_file}")
+set(package_script "./quote_esys-runner quote_esys eyrie-rt loader.bin --sm-bin ${fw_file}")
 
 # eapp
 
@@ -25,7 +25,7 @@ target_include_directories(${eapp_bin}
 add_executable(${host_bin} ${host_src})
 target_link_libraries(${host_bin}
   	${KEYSTONE_LIB_HOST} ${KEYSTONE_LIB_EDGE} ${KEYSTONE_LIB_VERIFIER}
-	tss2-tctildr tss2-sys tss2-rc tss2-mu)
+	tss2-tctildr tss2-esys tss2-rc tss2-mu)
 set_target_properties(${host_bin}
   PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES CXX_EXTENSIONS NO
   )
@@ -52,7 +52,7 @@ if(NOT DEFINED fw_bin)
 endif()
 
 get_filename_component(fw_file ${fw_bin} NAME)
-set(package_script "./mytest-runner mytest eyrie-rt loader.bin --sm-bin ${fw_file}")
+set(package_script "./quote_esys-runner quote_esys eyrie-rt loader.bin --sm-bin ${fw_file}")
 
 # add target for packaging (see keystone.cmake)
 
