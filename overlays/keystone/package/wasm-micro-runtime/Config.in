@@ -1,0 +1,9 @@
+config BR2_PACKAGE_WASM_MICRO_RUNTIME
+	bool "wasm-micro-runtime"
+	depends on BR2_USE_MMU
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	help
+	  WebAssembly Micro Runtime, also known as WAMR.
+
+	  This package builds and installs the iwasm interpreter
+	  into the target root filesystem.

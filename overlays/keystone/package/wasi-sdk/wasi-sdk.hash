@@ -1,0 +1,3 @@
+# overlays/keystone/package/wasi-sdk/wasi-sdk.hash
+
+sha256  0ba8b5bfaeb2adf3f29bab5841d76cf5318ab8e1642ea195f88baba1abd47bce  wasi-sdk-33.0-x86_64-linux.tar.gz

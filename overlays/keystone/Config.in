@@ -1,3 +1,47 @@
+comment "RIV attestation defaults"
+
+config BR2_KEYSTONE_RIV_ATTESTATION
+	bool
+	default y
+	help
+	  Internal marker used to enable default Buildroot and Linux
+	  kernel options for the RIV attestation project.
+
+config BR2_PACKAGE_TPM2_TOOLS
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_GIT
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_RTC_TOOLS
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_CA_CERTIFICATES
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_NTP
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_OPENSSH
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_FLUENT_BIT
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_FLUENT_BIT_WASM
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_VIM
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_FILE
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_PACKAGE_WASM_MICRO_RUNTIME
+	default y if BR2_KEYSTONE_RIV_ATTESTATION
+
+config BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES
+	default "$(BR2_EXTERNAL_KEYSTONE_PATH)/configs/riv-attestation/linux.fragment" if BR2_KEYSTONE_RIV_ATTESTATION
 
 # Bootloaders
 source "$BR2_EXTERNAL_KEYSTONE_PATH/boot/keystone-bootrom/Config.in"
@@ -9,3 +53,4 @@ source "$BR2_EXTERNAL_KEYSTONE_PATH/package/keystone-driver/Config.in"
 source "$BR2_EXTERNAL_KEYSTONE_PATH/package/keystone-sdk/Config.in.host"
 source "$BR2_EXTERNAL_KEYSTONE_PATH/package/keystone-runtime/Config.in"
 source "$BR2_EXTERNAL_KEYSTONE_PATH/package/keystone-examples/Config.in"
+source "$BR2_EXTERNAL_KEYSTONE_PATH/package/wasm-micro-runtime/Config.in"

@@ -13,6 +13,3 @@
 [submodule "scripts/ci/utils/relay_ft245r"]
 	path = scripts/ci/utils/relay_ft245r
 	url = https://github.com/vpatron/relay_ft245r
-[submodule "runtime/wasm-micro-runtime"]
-	path = runtime/wasm-micro-runtime
-	url = https://github.com/bytecodealliance/wasm-micro-runtime.git
