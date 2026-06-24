@@ -1,13 +1,23 @@
+$(info >>> reading Keystone external.mk)
+$(info >>> BR2_EXTERNAL_KEYSTONE_PATH=$(BR2_EXTERNAL_KEYSTONE_PATH))
+$(info >>> PACKAGE_MKS=$(wildcard $(BR2_EXTERNAL_KEYSTONE_PATH)/package/*/*.mk))
 
 ##############
 ## Packages ##
 ##############
 
+WASM_MICRO_RUNTIME_MK = $(BR2_EXTERNAL_KEYSTONE_PATH)/package/wasm-micro-runtime/wasm-micro-runtime.mk
+
+# Standard Buildroot package: include this before Keystone mkutils-based packages
+include $(WASM_MICRO_RUNTIME_MK)
+
 # Bootloaders
 include $(sort $(wildcard $(BR2_EXTERNAL_KEYSTONE_PATH)/boot/*/*.mk))
 
 # Packages
-include $(sort $(wildcard $(BR2_EXTERNAL_KEYSTONE_PATH)/package/*/*.mk))
+include $(sort $(filter-out \
+	$(WASM_MICRO_RUNTIME_MK), \
+	$(wildcard $(BR2_EXTERNAL_KEYSTONE_PATH)/package/*/*.mk)))
 
 ######################
 ## Platform patches ##
