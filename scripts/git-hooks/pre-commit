@@ -1,0 +1,142 @@
+#!/bin/sh
+#
+# Blocks commits made directly on a shared branch, and enforces the team's
+# feature/<member>/<topic> branch naming convention.
+#
+# Enable once per clone:
+#     git config core.hooksPath scripts/git-hooks
+#
+# See the "Git workflow" section of CLAUDE.md for the full policy.
+
+# ---------------------------------------------------------------------------
+# Team roster. Update this line when someone joins or leaves — it is the only
+# place the member names are hard-coded.
+# ---------------------------------------------------------------------------
+MEMBERS='mit tani ono sa sho'
+
+PROTECTED='master main dev'
+
+# A detached HEAD means we are mid-rebase, mid-bisect, or mid-cherry-pick.
+# Those are legitimate and the branch check does not apply.
+branch=$(git symbolic-ref --short HEAD 2>/dev/null) || exit 0
+
+red=''
+bold=''
+reset=''
+if [ -t 2 ]; then
+	red=$(printf '\033[31m')
+	bold=$(printf '\033[1m')
+	reset=$(printf '\033[0m')
+fi
+
+fail() {
+	printf '%s%s✗ %s%s\n' "$bold" "$red" "$1" "$reset" >&2
+	shift
+	for line in "$@"; do
+		printf '  %s\n' "$line" >&2
+	done
+	printf '\n  %s\n' "(intentional exception: git commit --no-verify)" >&2
+	exit 1
+}
+
+member_list() {
+	printf '%s' "$MEMBERS" | tr ' ' '|'
+}
+
+for protected in $PROTECTED; do
+	if [ "$branch" = "$protected" ]; then
+		fail "Direct commits to '$branch' are not allowed." \
+			"" \
+			"Every change goes through a feature branch and a reviewed pull request." \
+			"Move your work onto a branch — uncommitted changes carry over:" \
+			"" \
+			"    git switch -c feature/<member>/<topic>" \
+			""
+	fi
+done
+
+# Shape check: exactly feature/<member>/<topic>, with a non-empty topic.
+case "$branch" in
+feature/*/?*) ;;
+*)
+	fail "Branch '$branch' does not follow the team naming convention." \
+		"" \
+		"Expected: feature/<member>/<topic>" \
+		"          <member> is one of: $(member_list)" \
+		"          <topic>  describes the work (kebab-case or snake_case)" \
+		"" \
+		"Examples: feature/mit/wasm-micro-runtime" \
+		"          feature/tani/quote-program" \
+		"" \
+		"Rename the current branch with:" \
+		"" \
+		"    git branch -m feature/<member>/<topic>" \
+		""
+	;;
+esac
+
+rest=${branch#feature/}
+member=${rest%%/*}
+topic=${rest#*/}
+
+# The member segment must match the roster exactly — this is what catches
+# typos ('mitt') and casing slips ('Mit') that a shape-only check would allow.
+known=0
+for m in $MEMBERS; do
+	if [ "$member" = "$m" ]; then
+		known=1
+		break
+	fi
+done
+
+if [ "$known" -eq 0 ]; then
+	# Offer the roster entry the typo most likely meant: the one sharing the
+	# longest prefix. Comparing whole prefixes rather than just the initial
+	# keeps 'saa' from being answered with 'sho'.
+	hint=''
+	hint_len=0
+	typo=$(printf '%s' "$member" | tr 'A-Z' 'a-z')
+	for m in $MEMBERS; do
+		len=0
+		while [ "$len" -lt "${#m}" ] && [ "$len" -lt "${#typo}" ]; do
+			next=$((len + 1))
+			[ "$(printf '%s' "$m" | cut -c"$next")" = \
+				"$(printf '%s' "$typo" | cut -c"$next")" ] || break
+			len=$next
+		done
+		if [ "$len" -gt "$hint_len" ]; then
+			hint_len=$len
+			hint=$m
+		fi
+	done
+
+	if [ -n "$hint" ]; then
+		fail "Unknown member name '$member' in branch '$branch'." \
+			"" \
+			"Valid members: $(member_list)" \
+			"Did you mean: feature/$hint/$topic ?" \
+			"" \
+			"    git branch -m feature/$hint/$topic" \
+			""
+	fi
+
+	fail "Unknown member name '$member' in branch '$branch'." \
+		"" \
+		"Valid members: $(member_list)" \
+		"" \
+		"If someone joined the team, add them to MEMBERS in" \
+		"scripts/git-hooks/pre-commit rather than bypassing this check." \
+		""
+fi
+
+# Topic characters. Deliberately permissive: the repository history contains
+# both kebab-case (wasm-micro-runtime) and snake_case (develop_hello_wasm_ke).
+if ! printf '%s' "$topic" | grep -Eq '^[A-Za-z0-9._/-]+$'; then
+	fail "Topic '$topic' contains characters that are not allowed in a branch name." \
+		"" \
+		"Use letters, digits, '-', '_', '.' — for example:" \
+		"    feature/$member/add-tpm-quote-check" \
+		""
+fi
+
+exit 0
