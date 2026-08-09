@@ -36,7 +36,9 @@ KEYSTONE_EXAMPLES_CONF_OPTS += -DKEYSTONE_BUILD_WASM=ON \
 				-DWASI_TARGET=wasm32-wasip1
 KEYSTONE_EXAMPLES_CONF_OPTS += -DXXD_EXECUTABLE=$(HOST_DIR)/bin/xxd
 
-ifeq ($(KEYSTONE_PLATFORM),cva6)
+# cva6 and generic boot fw_payload (OpenSBI+SM with U-Boot payload); the
+# attestation example must embed the same image the bootrom measures.
+ifneq ($(filter cva6 generic,$(KEYSTONE_PLATFORM)),)
 KEYSTONE_EXAMPLES_CONF_OPTS += -Dfw_bin=$(BINARIES_DIR)/fw_payload.bin
 endif
 

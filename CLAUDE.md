@@ -54,7 +54,32 @@ Inside the guest: `modprobe keystone-driver`, then run a packaged enclave, e.g.
 
 **`make run` on `generic` requires a swtpm socket at `/tmp/emulated_tpm/swtpm-sock`** — QEMU is launched
 with `-tpmdev emulator` unconditionally (`mkutils/plat/generic/run.mk`) and will refuse to start without it.
-The kernel cmdline also sets `ima_policy=tcb`.
+The TPM frontend (`tcg,tpm-tis-mmio` at `0x10101000`) is not on the QEMU command line — the buildroot
+fork's `package/qemu/0005-riscv-virt-add-tpm-support.patch` auto-instantiates it whenever a tpmdev
+backend exists and emits the `/soc/tpm@10101000` FDT node.
+
+### Measured boot on `generic`
+
+The generic platform boots `-bios fw_payload.elf` (OpenSBI+SM with **U-Boot 2024.01** as `FW_PAYLOAD`),
+not `fw_jump` + `-kernel`. U-Boot loads `/boot/Image` from the rootfs via extlinux and, before booting
+it, extends TPM PCRs (`CONFIG_MEASURED_BOOT`): PCR8 ← kernel, PCR9 ← initrd, PCR1 ← bootargs,
+PCR0 ← DTB + CRTM version + separators. IMA then extends PCR10 at runtime (`ima_policy=tcb`).
+
+- The kernel cmdline lives in `overlays/keystone/board/qemu/generic/extlinux.conf` (installed to
+  `/boot/extlinux/` by `post-build.sh` from the same directory), **not** in `run.mk`.
+- U-Boot's TPM driver + measured boot come from the Kconfig fragment
+  `overlays/keystone/board/qemu/generic/uboot-tpm.config`. Its `CONFIG_PREBOOT` grafts
+  `tpm_event_log_addr/size` into the TPM DT node — **without an event-log buffer U-Boot measures
+  nothing and does not complain** (`bootm_measure()`'s return value is ignored). So when touching this
+  area, verify with PCR values (`/sys/class/tpm/tpm0/pcr-sha256/8` must be non-zero), never with
+  "it boots".
+- The bootrom (CRTM) still measures only `0x80000000..0x801ff000` (OpenSBI+SM) into the sanctum
+  parameters; U-Boot sits at `+0x200000`, *outside* that window, and is itself unmeasured — a known
+  gap. PCR0 varies per boot because QEMU injects a fresh `rng-seed` into `/chosen` (drop
+  `CONFIG_MEASURE_DEVICETREE` if a stable PCR0 is ever needed).
+- The attestation/quote examples embed the SM image the bootrom measures: `keystone-examples.mk`
+  passes `-Dfw_bin=fw_payload.bin` for `generic` (and cva6). If they report an SM hash mismatch after
+  boot-chain changes, that wiring is the first suspect.
 
 ### The content-hash package versioning gotcha
 
