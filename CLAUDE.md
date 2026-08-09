@@ -41,6 +41,7 @@ BUILDROOT_TARGET=keystone-runtime-dirclean make     # clean one package
 
 make buildroot-configure    # menuconfig, then writes back overlays/keystone/configs/<defconfig>
 make linux-configure        # linux-menuconfig, then writes back overlays/keystone/configs/linux*-defconfig
+                            # ^ both are development helpers — a plain `make` never opens a menu
 
 make run                    # boot QEMU (generic platform); login root / sifive; exit with ctrl-a x
 KEYSTONE_DEBUG=y make run   # start QEMU halted with a gdb stub
@@ -64,6 +65,47 @@ this is intentional, it is what makes in-tree edits actually take effect. The bu
 `Stale build directory detected` warning when old-version directories linger; clear them with
 `BUILDROOT_TARGET=<pkg>-dirclean make`. Do not hand-edit files inside `build-*/buildroot.build/build/`;
 they are copies and get blown away.
+
+### Who runs `*-configure`, and why the defconfigs drift
+
+Nobody needs to run the configure targets to build. `all` → `buildroot` depends only on
+`$(BUILDROOT_BUILDDIR)/.config`, whose rule applies the committed defconfig non-interactively
+(`Makefile:70-74`). `buildroot-configure` and `linux-configure` are separate `.PHONY` targets that
+nothing in the build path invokes — **run them only when you actually intend to change the
+configuration.** Everyone else just runs `make` and inherits the settings from the committed defconfigs.
+
+Both helpers write back into `overlays/keystone/configs/`, and the write-back is lossy in ways that
+look like somebody's hand edit but are purely mechanical:
+
+- `savedefconfig` emits only symbols that differ from their Kconfig default, so anything matching the
+  default is silently dropped. Buildroot 2023.02.2 declares `default BR2_TOOLCHAIN_BUILDROOT_GLIBC`
+  (`toolchain/toolchain-buildroot/Config.in`), so that line vanishes from any defconfig round-tripped
+  through the target.
+- `Makefile:73` appends a machine-specific absolute `BR2_ROOTFS_OVERLAY` to `.config`, and
+  `Makefile:107` then deletes *every* `BR2_ROOTFS_OVERLAY` line from the defconfig to keep that path out
+  of the repository — including a hand-written placeholder.
+
+The consequence is that a defconfig still carrying either line is not a fixed point: entering and
+exiting menuconfig without touching anything leaves it modified. `riscv64_generic_defconfig` has been
+normalised so a no-op round trip is byte-identical, matching `cva6`, `mpfs`, and `hifive_unmatched`.
+**Do not re-add `BR2_TOOLCHAIN_BUILDROOT_GLIBC=y` or `BR2_ROOTFS_OVERLAY` to it** — glibc is still
+selected as the Kconfig default, and the overlay path is supplied at build time. `riscv64_firesim`,
+`riscv64_sifive`, and `riscv32_generic` still carry the old lines; they are not on the supported
+platform list (`Makefile:27`) so nobody has run the target against them.
+
+### A changed Buildroot defconfig does not reach an existing build tree
+
+The two generated configs behave differently, and the Buildroot one will quietly ignore what you pulled:
+
+| changed file | picked up by a plain `make`? |
+|---|---|
+| `configs/linux*-defconfig` | **yes** — `buildroot/package/pkg-kconfig.mk:159` makes the kernel's `.stamp_dotconfig` depend on `LINUX_KCONFIG_FILE`, so Buildroot reconfigures |
+| `configs/riscv*_defconfig` | **no** — `Makefile:70` depends on the build *directory*, not on the defconfig, so an existing `build-*/buildroot.build/.config` is never regenerated |
+
+So after pulling a commit that touches a Buildroot defconfig, delete the build directory
+(`rm -rf build-$(KEYSTONE_PLATFORM)$(KEYSTONE_BITS)`) or the change has no effect — the build will
+succeed with the old settings. Buildroot does not support incremental rebuilds across configuration
+changes anyway. Neither `.config` is tracked; `.gitignore`'s `build*/` covers both.
 
 ## Tests
 
