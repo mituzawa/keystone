@@ -78,8 +78,14 @@ PCR0 ← DTB + CRTM version + separators. IMA then extends PCR10 at runtime (`im
   gap. PCR0 varies per boot because QEMU injects a fresh `rng-seed` into `/chosen` (drop
   `CONFIG_MEASURE_DEVICETREE` if a stable PCR0 is ever needed).
 - The attestation/quote examples embed the SM image the bootrom measures: `keystone-examples.mk`
-  passes `-Dfw_bin=fw_payload.bin` for `generic` (and cva6). If they report an SM hash mismatch after
-  boot-chain changes, that wiring is the first suspect.
+  passes `-Dfw_bin=fw_payload.bin` for `generic` (and cva6). **The embedded copy goes stale**: Buildroot
+  dependencies only order builds, so rebuilding `opensbi`/`uboot`/`keystone-sm` (a `-dirclean`, a U-Boot
+  config change, or any `sm/` source edit) produces a new `fw_payload.bin` without repackaging the
+  examples — the `.ke` files keep the old firmware and `attestor.ke`/`quote*.ke` then fail with
+  `Either the enclave hash or the SM hash (or both) does not match`. The failing side is the *expected*
+  SM hash (computed from the packaged copy), not the measurement. Fix:
+  `BUILDROOT_TARGET=keystone-examples-dirclean make`. When debugging such a mismatch, compare
+  `md5sum images/fw_payload.bin build/keystone-examples-*/attestation/pkg/fw_payload.bin` first.
 
 ### The content-hash package versioning gotcha
 
