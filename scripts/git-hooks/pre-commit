@@ -47,7 +47,7 @@ for protected in $PROTECTED; do
 	if [ "$branch" = "$protected" ]; then
 		fail "Direct commits to '$branch' are not allowed." \
 			"" \
-			"Every change goes through a feature branch and a reviewed pull request." \
+			"Every change goes through a feature branch and a pull request." \
 			"Move your work onto a branch — uncommitted changes carry over:" \
 			"" \
 			"    git switch -c feature/<member>/<topic>" \

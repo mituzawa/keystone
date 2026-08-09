@@ -28,7 +28,7 @@ while read -r _local_ref _local_sha remote_ref _remote_sha; do
 		printf '%s%s✗ Refusing to push directly to '\''%s'\''.%s\n' \
 			"$bold" "$red" "$target" "$reset" >&2
 		printf '\n' >&2
-		printf '  %s reaches %s only through a reviewed pull request.\n' \
+		printf '  %s reaches %s only through a pull request.\n' \
 			"This repository" "$target" >&2
 		printf '  Push your feature branch instead, then open a PR:\n' >&2
 		printf '\n' >&2

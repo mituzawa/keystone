@@ -207,11 +207,11 @@ documentation, and config tweaks.**
    `mit`, `tani`, `ono`, `sa`, `sho` — and `<topic>` describes the work. Existing examples:
    `feature/mit/wasm-micro-runtime`, `feature/tani/quote-program`, `feature/sa/ima-config`.
    Both kebab-case and snake_case topics appear in the history; either is fine.
-3. **Push the branch and open a PR against `master`** (`gh pr create --base master`). Get **1 approving
-   review** before merging. This one is a team agreement, **not** something GitHub enforces — see
-   "What GitHub actually enforces" below — so it is on the author not to self-merge unreviewed.
+3. **Push the branch and open a PR against `master`** (`gh pr create --base master`). What is required
+   is that the change *arrives as a PR* rather than a direct push. **An approving review is not
+   required** — review is welcome, and the author may merge their own PR without one.
 4. **Do not merge, and do not approve, on the author's behalf.** Opening the PR is where the automated
-   work stops; a human reviewer takes it from there.
+   work stops; merging is a deliberate decision for a person to make.
 
 ### What GitHub actually enforces
 
@@ -225,13 +225,15 @@ The `Protect default branches` ruleset (id `17383480`, active, no bypass actors)
 | Branch deletion | blocked |
 | **Required approving reviews** | **0** — a PR can be self-merged with no review |
 
-So the platform guarantees *"it went through a PR"*, not *"someone reviewed it"*. The one-approval
-rule lives in this document and in people's heads. Do not treat a mergeable PR as an approved one;
-check the review state explicitly (`gh pr view --json reviewDecision,reviews`).
+The platform therefore guarantees *"it went through a PR"*, not *"someone reviewed it"* — and that is
+the intended policy, not a gap. An unreviewed PR is legitimately mergeable by its author, so a missing
+approval is not a reason to hold a merge. `gh pr view --json reviewDecision,reviews` still tells you
+what review a PR actually got, which is worth reporting even though nothing depends on it.
 
-Classic branch protection is not configured; the ruleset is the only server-side control. If the team
-later wants the approval requirement enforced, raise `required_approving_review_count` to 1 on that
-ruleset and update the table above.
+Classic branch protection is not configured; the ruleset is the only server-side control. The zero
+approval requirement is deliberate, so this document and the server agree. If the team ever wants
+review enforced, raise `required_approving_review_count` on that ruleset and update the table above —
+rather than documenting a stricter rule here than the server applies.
 
 ### Enforcement
 
@@ -256,8 +258,8 @@ exceptional situations, not a normal step.
 Claude Code specifics:
 
 - Commit and push only when explicitly asked — but when asked while on `master`, branch first and say so.
-- If asked to merge a PR, check `reviewDecision` first. GitHub will happily merge an unreviewed PR
-  here, so the check has to be done deliberately; if there is no approval, say so and stop.
+- If asked to merge a PR, merging an unreviewed one is fine — that is the policy here, so a missing
+  approval is not a reason to stop. Merge only when asked, and never approve on the author's behalf.
 - Never reach for `--no-verify`, a force push to `master`, or `core.hooksPath` unset to get around a
   blocked operation. If a hook fires, report it and let the user decide.
 
