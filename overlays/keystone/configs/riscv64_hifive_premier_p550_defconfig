@@ -1,0 +1,65 @@
+# HiFive Premier P550 (ESWIN EIC7700X, 4x SiFive P550). Firmware, U-Boot
+# and Linux come from the eswincomputing vendor forks, pinned by commit.
+#
+# Notes:
+# - The patch dir below deliberately does NOT include the shared
+#   $(BR2_EXTERNAL_KEYSTONE_PATH)/patches dir: its opensbi-change-basename
+#   patch does not apply to the vendor fork (and is unnecessary, PLATFORM is
+#   always passed explicitly), and the secure-boot ldS patch is unused here
+#   because sm_copy_key() is stubbed (see sm/src/platform/eswin/eic770x).
+# - `make linux-configure` does not work for this platform: the kernel
+#   config is the vendor in-tree eic7700 defconfig plus a fragment, not a
+#   BR2_LINUX_KERNEL_CUSTOM_CONFIG_FILE.
+BR2_riscv=y
+BR2_TOOLCHAIN_BUILDROOT_CXX=y
+BR2_CCACHE=y
+BR2_CCACHE_INITIAL_SETUP="-M0 -F0"
+BR2_GLOBAL_PATCH_DIR="$(BR2_EXTERNAL_KEYSTONE_PATH)/board/eswin/hifive-premier-p550/patches"
+BR2_PER_PACKAGE_DIRECTORIES=y
+BR2_SSP_NONE=y
+BR2_TARGET_GENERIC_HOSTNAME="keystone"
+BR2_INIT_SYSTEMD=y
+BR2_TARGET_GENERIC_ROOT_PASSWD="sifive"
+BR2_SYSTEM_BIN_SH_BASH=y
+BR2_TARGET_GENERIC_GETTY_PORT="ttyS0"
+BR2_SYSTEM_DHCP="end0"
+BR2_SYSTEM_DEFAULT_PATH="/bin:/sbin:/usr/bin:/usr/sbin"
+BR2_ROOTFS_POST_BUILD_SCRIPT="$(BR2_EXTERNAL_KEYSTONE_PATH)/board/eswin/hifive-premier-p550/post-build.sh"
+BR2_ROOTFS_POST_IMAGE_SCRIPT="support/scripts/genimage.sh"
+BR2_ROOTFS_POST_SCRIPT_ARGS="-c $(BR2_EXTERNAL_KEYSTONE_PATH)/board/eswin/hifive-premier-p550/genimage_sdcard.cfg"
+BR2_LINUX_KERNEL=y
+BR2_LINUX_KERNEL_CUSTOM_GIT=y
+BR2_LINUX_KERNEL_CUSTOM_REPO_URL="https://github.com/eswincomputing/linux-stable.git"
+BR2_LINUX_KERNEL_CUSTOM_REPO_VERSION="fc6038c00e006226e3bd504d2679c534eabf5503"
+BR2_LINUX_KERNEL_DEFCONFIG="eic7700"
+BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES="$(BR2_EXTERNAL_KEYSTONE_PATH)/board/eswin/hifive-premier-p550/linux-keystone-fragment.config"
+BR2_LINUX_KERNEL_DTS_SUPPORT=y
+BR2_LINUX_KERNEL_INTREE_DTS_NAME="eswin/eic7700-hifive-premier-p550"
+BR2_LINUX_KERNEL_INSTALL_TARGET=y
+BR2_PACKAGE_DHCPCD=y
+BR2_PACKAGE_DROPBEAR=y
+BR2_TARGET_ROOTFS_EXT2=y
+BR2_TARGET_ROOTFS_EXT2_4=y
+BR2_TARGET_ROOTFS_EXT2_SIZE="512M"
+BR2_TARGET_OPENSBI=y
+BR2_TARGET_OPENSBI_CUSTOM_GIT=y
+BR2_TARGET_OPENSBI_CUSTOM_REPO_URL="https://github.com/eswincomputing/opensbi.git"
+BR2_TARGET_OPENSBI_CUSTOM_REPO_VERSION="f2656b169a250ca9c37253d05105f6c7dac699ca"
+BR2_TARGET_OPENSBI_PLAT="eswin/eic770x"
+BR2_TARGET_OPENSBI_UBOOT_PAYLOAD=y
+BR2_TARGET_OPENSBI_FW_FDT_PATH=y
+BR2_TARGET_UBOOT=y
+BR2_TARGET_UBOOT_BUILD_SYSTEM_KCONFIG=y
+BR2_TARGET_UBOOT_CUSTOM_GIT=y
+BR2_TARGET_UBOOT_CUSTOM_REPO_URL="https://github.com/eswincomputing/u-boot.git"
+BR2_TARGET_UBOOT_CUSTOM_REPO_VERSION="a69ce946b3787e7f24e876799cb3bd0c233d8a2d"
+BR2_TARGET_UBOOT_BOARD_DEFCONFIG="hifive_premier_p550"
+BR2_TARGET_UBOOT_NEEDS_DTC=y
+BR2_TARGET_UBOOT_NEEDS_PYLIBFDT=y
+BR2_TARGET_UBOOT_NEEDS_OPENSSL=y
+BR2_PACKAGE_HOST_GENIMAGE=y
+BR2_TARGET_KEYSTONE_SM=y
+BR2_PACKAGE_KEYSTONE_DRIVER=y
+BR2_PACKAGE_HOST_KEYSTONE_SDK=y
+BR2_PACKAGE_KEYSTONE_RUNTIME=y
+BR2_PACKAGE_KEYSTONE_EXAMPLES=y

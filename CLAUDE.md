@@ -20,7 +20,8 @@ OpenSBI+SM, driver, SDK, runtime, examples, QEMU — is built as Buildroot packa
 
 Configuration is passed as environment variables (see `docs/source/Getting-Started/QEMU-Compile-Sources.rst`):
 
-- `KEYSTONE_PLATFORM` — `generic` (QEMU), `cva6`, `hifive_unmatched`, `mpfs`. Default `generic`.
+- `KEYSTONE_PLATFORM` — `generic` (QEMU), `cva6`, `hifive_unmatched`, `mpfs`,
+  `hifive_premier_p550` (64-bit only). Default `generic`.
 - `KEYSTONE_BITS` — `64` or `32`. Default `64`.
 - `BUILDROOT_TARGET` — Buildroot subtarget to build instead of `all`.
 - `KEYSTONE_LOG_LEVEL` — 0=debug … 4=fatal (see `mkutils/log.mk`).
@@ -86,6 +87,29 @@ PCR0 ← DTB + CRTM version + separators. IMA then extends PCR10 at runtime (`im
   SM hash (computed from the packaged copy), not the measurement. Fix:
   `BUILDROOT_TARGET=keystone-examples-dirclean make`. When debugging such a mismatch, compare
   `md5sum images/fw_payload.bin build/keystone-examples-*/attestation/pkg/fw_payload.bin` first.
+
+### HiFive Premier P550 (`hifive_premier_p550`)
+
+Fork-added hardware platform (ESWIN EIC7700X, 4× SiFive P550). Unlike the other platforms it builds
+everything from the **eswincomputing vendor forks**, pinned by commit in
+`overlays/keystone/configs/riscv64_hifive_premier_p550_defconfig`: OpenSBI `opensbi-1.3-EIC7X`
+(the repo's first 1.3-based platform — OpenSBI 1.3 needs `Kconfig` + `configs/defconfig` in the
+platform dir, which is why `sm/plat/eswin/eic770x/` carries them), U-Boot `u-boot-2024.01-EIC7X`,
+Linux `linux-6.6.18-EIC7X` (vendor in-tree `eic7700` defconfig + a Keystone CMA fragment, so
+`make linux-configure` does not work here). The SM rides the vendor's dedicated
+`platform/eswin/eic770x` OpenSBI platform; `sm_init` is hooked in by a board patch
+(`overlays/keystone/board/eswin/hifive-premier-p550/patches/opensbi/`), and the memory layout
+(`FW_TEXT_START=0x80000000`, payload at `+0x200000`) is hardcoded in `sm/plat/eswin/eic770x/config.mk`
+together with the `-DBR2_CHIPLET_1 -DBR2_CHIPLET_1_DIE0_AVAILABLE` macros that select the 4-hart
+single-die topology — dropping those silently builds an 8-hart dual-die configuration.
+
+The shared `overlays/keystone/patches/` dir is **not** applied on this platform (the basename patch
+doesn't apply to the vendor fork; the secure-boot ldS patch is unused). There is no root of trust
+yet: the P550 boot chain (SCPU mask ROM → QSPI bootchain → `fw_payload`) has no patchable stage
+before the SM, so `sm_copy_key()` zeroes all keys (mpfs-style) and attestation cannot verify on
+hardware. The build stops at `images/fw_payload.bin` + `sdcard.img` (single GPT rootfs partition —
+firmware lives in QSPI); packaging the QSPI bootchain (`nsign`, ddr/second-boot blobs from
+`sifive/hifive-premier-p550-tools`) and flashing (`es_burn`) are manual follow-up steps.
 
 ### The content-hash package versioning gotcha
 
