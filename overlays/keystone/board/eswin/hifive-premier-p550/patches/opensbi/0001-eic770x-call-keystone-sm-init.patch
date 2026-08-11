@@ -1,0 +1,31 @@
+eic770x: call the Keystone SM init from final_init
+
+The Keystone security monitor is linked into the firmware via the
+out-of-tree platform dir (sm/plat/eswin/eic770x, see PLATFORM_DIR in
+overlays/keystone/boot/keystone-sm/keystone-sm.mk); this hooks its
+initialization into the vendor platform, mirroring what
+sm/plat/hifive/unmatched/unmatched.c does for the fu740.
+
+Generated against eswincomputing/opensbi opensbi-1.3-EIC7X
+@ f2656b169a250ca9c37253d05105f6c7dac699ca.
+
+--- a/platform/eswin/eic770x/platform.c
++++ b/platform/eswin/eic770x/platform.c
+@@ -362,10 +362,18 @@
+ 	return 0;
+ }
+
++/* Keystone security monitor entry, provided by the out-of-tree platform
++ * directory (sm/plat/eswin/eic770x, wired up via PLATFORM_DIR). */
++void sm_init(bool cold_boot);
++
+ static int eic770x_final_init(bool cold_boot)
+ {
+ 	void *fdt;
+
++	/* sm_init() must run on every hart, so call it before the
++	 * warm-boot early return below. */
++	sm_init(cold_boot);
++
+ 	if (!cold_boot)
+ 		return 0;
