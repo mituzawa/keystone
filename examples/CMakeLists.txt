@@ -288,7 +288,6 @@ add_subdirectory(hello)
 add_subdirectory(hello-native)
 add_subdirectory(attestation)
 add_subdirectory(tests)
-add_subdirectory(riv_attestation)
 add_subdirectory(quote_check)
 add_subdirectory(quote_check_esys)
 
