@@ -245,7 +245,7 @@ WAMR is built for the target with staging install (`libiwasm.a` + headers under
 
 ### Attestation examples
 
-`attestation/` is upstream. `riv_attestation/`, `quote_check/`, and `quote_check_esys/` are fork
+`attestation/` is upstream. `quote_check/` and `quote_check_esys/` are fork
 additions; the `quote_check*` hosts link against `tpm2-tss` (`tss2-tctildr`/`tss2-sys`/`tss2-rc`/`tss2-mu`)
 and combine a Keystone enclave report with a TPM quote, which is why `make run` needs the emulated TPM.
 
