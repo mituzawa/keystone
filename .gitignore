@@ -5,3 +5,6 @@ build*/
 riscv/
 riscv64/
 riscv32/
+
+# riv (scripts/build-keystone.sh) が配置するコピー。正本はrivリポジトリ側
+examples/riv-attester/
