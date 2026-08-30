@@ -351,4 +351,26 @@ if(KEYSTONE_BUILD_WASM)
   )
 
   add_dependencies(examples wasm-examples)
+
+  #
+  # pcce-ta: TA (C -> wasm32-wasip1) running inside an enclave WAMR runner
+  # with the riv attester linked into the same enclave. Unlike attestor_wasm
+  # (whose env.* imports are never registered, so it fails to instantiate,
+  # and whose package reuses a plugins-"none" eyrie), pcce-ta registers its
+  # native imports and carries its own eyrie with the plugins a glibc-static
+  # WAMR runner needs.
+  #
+  # Requires the riv-attester sources, which riv's scripts/build-keystone.sh
+  # copies into examples/riv-attester.
+  #
+  if(EXISTS "${CMAKE_SOURCE_DIR}/riv-attester/eapp/attester.c")
+    add_subdirectory(pcce-ta)
+  else()
+    message(STATUS "pcce-ta: skipped (examples/riv-attester not present; "
+                   "run riv's scripts/build-keystone.sh)")
+  endif()
 endif()
+
+# >>> riv (scripts/build-keystone.sh が管理。手で編集しない)
+add_subdirectory(riv-attester)
+# <<< riv
