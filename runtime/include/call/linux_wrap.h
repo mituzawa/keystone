@@ -14,6 +14,7 @@ uintptr_t linux_rt_sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 uintptr_t linux_getrandom(void *buf, size_t buflen, unsigned int flags);
 uintptr_t linux_getpid();
 uintptr_t linux_set_tid_address(int* tidptr);
+uintptr_t linux_futex(uint32_t* uaddr, int op, uint32_t val);
 uintptr_t linux_RET_ZERO_wrap(unsigned long which);
 uintptr_t linux_RET_BAD_wrap(unsigned long which);
 uintptr_t syscall_munmap(void *addr, size_t length);

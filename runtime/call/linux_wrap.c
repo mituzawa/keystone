@@ -37,6 +37,48 @@ uintptr_t linux_set_tid_address(int* tidptr_t){
   return 1;
 }
 
+/* Minimal single-threaded futex emulation.
+ *
+ * glibc (statically linked eapps) issues futex syscalls even without
+ * contention: pthread_once always ends with FUTEX_WAKE, and treats any
+ * unexpected error (such as the -1/EPERM the default case returns) as
+ * fatal ("The futex facility returned an unexpected error code"),
+ * aborting the enclave. With a single thread there is never a real
+ * waiter, so WAKE is a no-op and WAIT either fails the value check
+ * (-EAGAIN) or returns as a spurious wakeup (POSIX permits those;
+ * callers re-check their condition). */
+#define LINUX_FUTEX_WAIT 0
+#define LINUX_FUTEX_WAKE 1
+#define LINUX_FUTEX_WAIT_BITSET 9
+#define LINUX_FUTEX_WAKE_BITSET 10
+#define LINUX_FUTEX_PRIVATE_FLAG 128
+#define LINUX_FUTEX_CLOCK_REALTIME 256
+#define LINUX_EAGAIN 11
+
+uintptr_t linux_futex(uint32_t* uaddr, int op, uint32_t val){
+  int cmd = op & ~(LINUX_FUTEX_PRIVATE_FLAG | LINUX_FUTEX_CLOCK_REALTIME);
+  uint32_t cur;
+
+  switch (cmd) {
+  case LINUX_FUTEX_WAIT:
+  case LINUX_FUTEX_WAIT_BITSET:
+    if (copy_from_user(&cur, uaddr, sizeof(cur)) != 0)
+      return -1;
+    if (cur != val)
+      return -LINUX_EAGAIN;
+    /* single-threaded: report a spurious wakeup instead of blocking */
+    print_strace("[runtime] futex WAIT on %p treated as spurious wakeup\r\n",
+                 uaddr);
+    return 0;
+  case LINUX_FUTEX_WAKE:
+  case LINUX_FUTEX_WAKE_BITSET:
+    return 0; /* no waiters to wake */
+  default:
+    print_strace("[runtime] futex op %d not supported, IGNORING = 0\r\n", op);
+    return 0;
+  }
+}
+
 uintptr_t linux_rt_sigprocmask(int how, const sigset_t *set, sigset_t *oldset){
   print_strace("[runtime] rt_sigprocmask not supported (how %x), IGNORING\r\n", how);
   return 0;
