@@ -1,13 +1,19 @@
 # pcce-ta — PCCE TA (C -> wasm32-wasip1) を enclave内WAMRで実行するexample。
 #
 # 構成 (rivリポジトリ doc/design/wasm-ta.md / keystone-layout.md):
-#   wasm/ta_main.c       TA本体。wasi-sdkで .wasm 化し xxd で埋め込む(段階1)
+#   wasm/ta_main.c       TA本体。wasi-sdkで .wasm 化(段階2: 埋め込まず
+#                        ビルド成果物として出力。ta-packで暗号化して配布)
 #   eapp/runner_main.c   WAMR + "env" native imports + riv attesterループ
-#   host                 riv-attesterのhost(TCP中継)を流用
+#   eapp/ta_loader.c     ta.encのhost経由チャンクロード
+#   eapp/dev_key.c       sk_dev/pk_devの決定論的導出(sealing key由来)
+#   host                 riv-attesterのhost(TCP中継+ta.enc給仕)を流用
 #
 # 前提: KEYSTONE_BUILD_WASM=ON かつ examples/riv-attester
 # (rivリポジトリの scripts/build-keystone.sh がコピーを配置)が存在すること。
 # 親のCMakeLists.txtが両条件を確認してから add_subdirectory する。
+#
+# runnerはTAの検証・復号にOpenSSL(buildroot stagingのlibcrypto.a)を
+# 静的リンクする。検証・復号のみで乱数を使わないためRNG初期化は不要。
 #
 # TAは --allow-undefined なしでリンクする(importはimport_module属性で明示。
 # 漏れがあればwasi-sdkのリンクエラーになる)。
@@ -21,10 +27,9 @@ set(eyrie_plugins "io_syscall linux_syscall env_setup")
 
 set(riv_dir "${CMAKE_SOURCE_DIR}/riv-attester")
 
-# TA: .wasm 生成 → xxd埋め込みCソース生成
+# TA: .wasm 生成(段階2: 埋め込まない。ta-packの入力になる成果物)
 
 set(ta_wasm "${CMAKE_CURRENT_BINARY_DIR}/pcce_ta.wasm")
-set(ta_wasm_c "${CMAKE_CURRENT_BINARY_DIR}/pcce_ta_wasm.c")
 
 add_custom_command(
   OUTPUT "${ta_wasm}"
@@ -39,33 +44,32 @@ add_custom_command(
   VERBATIM
 )
 
-add_custom_command(
-  OUTPUT "${ta_wasm_c}"
-  COMMAND "${XXD_EXECUTABLE}" -i -n embedded_wasm "${ta_wasm}" "${ta_wasm_c}"
-  DEPENDS "${ta_wasm}"
-  COMMENT "Generating pcce_ta_wasm.c"
-  VERBATIM
-)
+add_custom_target(${runner_bin}-ta-wasm ALL DEPENDS "${ta_wasm}")
 
-# runner eapp: WAMR + 埋め込みTA + riv attester(同一enclaveリンク)
+# runner eapp: WAMR + TAローダ + riv attester(同一enclaveリンク)
 
 # libkeystone-eapp.a はリンクしない(tiny-malloc.oが引き込まれ
 # __malloc_start未解決になる)。syscallラッパは自前定義で持つ。
 add_executable(${runner_bin}
   eapp/runner_main.c
   eapp/keystone_syscalls.c
-  "${ta_wasm_c}"
+  eapp/ta_loader.c
+  eapp/dev_key.c
   ${riv_dir}/eapp/attester.c
-  ${riv_dir}/common/src/riv_proto.c)
+  ${riv_dir}/common/src/riv_proto.c
+  ${riv_dir}/common/src/riv_ta_verify.c)
 target_link_options(${runner_bin} PRIVATE -static)
 target_include_directories(${runner_bin}
   PRIVATE
     ${WAMR_INCLUDE_DIR}
     ${riv_dir}
     ${riv_dir}/common/include)
+# crypto: buildroot sysroot(per-package staging)のlibcrypto.a。
+# -staticなので静的側が選ばれる。
 target_link_libraries(${runner_bin}
   PRIVATE
     ${IWASM_STATIC_LIBRARY}
+    crypto
     atomic
     m
     dl
@@ -98,4 +102,4 @@ add_keystone_package(${runner_bin}-package
   ${eyrie_files_to_copy} ${runner_bin} ${host_bin})
 
 add_dependencies(${runner_bin}-package ${runner_bin}-eyrie)
-add_dependencies(examples ${runner_bin}-package)
+add_dependencies(examples ${runner_bin}-package ${runner_bin}-ta-wasm)

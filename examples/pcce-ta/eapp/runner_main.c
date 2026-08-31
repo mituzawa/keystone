@@ -1,14 +1,18 @@
 /*
- * runner_main.c — PCCE TA runner eapp(段階1b: 平文埋め込みWasm)。
+ * runner_main.c — PCCE TA runner eapp(段階2: 暗号化TAのhost経由ロード)。
  *
  * examples/wasm_runner/embedded_wasm_main.c を出発点に、
  *  (1) "env"モジュールのnative import(query_attestation / riv_log)を登録し、
- *  (2) TA実行後に riv attester(rivリポジトリ attesters/keystone/eapp/
+ *  (2) 暗号化TA(ta.enc)をhostからチャンクロードしてenclave内で
+ *      検証・復号し(ta_loader.c、検証チェーンはrivのriv_ta_verify.c)、
+ *  (3) TA実行後に riv attester(rivリポジトリ attesters/keystone/eapp/
  *      attester.c を同一enclaveにリンク)のフレーム処理ループを回す。
  *
- * enclave測定値はrunner+埋め込みWasm+eyrieを一体で覆う(段階1)。
- * 段階2で埋め込みを廃し、暗号化TAのhost経由ロード+Hash束縛に移行する
- * (rivリポジトリ doc/design/wasm-ta.md)。
+ * enclave測定値はrunner+eyrieのみを覆い、TAには依存しない。TAは
+ * report data(nonce ∥ ta_hash ∥ pk_dev の96B)へのHash束縛で
+ * Evidenceに入る(rivリポジトリ doc/design/wasm-ta.md)。
+ * ta.encが無い場合はプロビジョニングモード(ta_hash=全ゼロ)で
+ * attestationのみ応答し、Verifierはpk_devを採取できる。
  *
  * TAにはKeystone API(ocall等)を直接importさせない。これにより
  * wasi-sdkリンク時に --allow-undefined が不要になり、import漏れを
@@ -26,9 +30,11 @@
 
 #include "eapp/attester.h"
 #include "eapp/ocall_ids.h"
+#include <riv/riv_ta.h>
 
-extern const unsigned char embedded_wasm[];
-extern const unsigned int embedded_wasm_len;
+#include "dev_key.h"
+#include "pk_ta_test.h"
+#include "ta_loader.h"
 
 #define WASM_STACK_SIZE (64 * 1024)
 #define WASM_HEAP_SIZE  (64 * 1024)
@@ -36,6 +42,10 @@ extern const unsigned int embedded_wasm_len;
 
 static uint8_t wamr_global_heap[WAMR_GLOBAL_HEAP_SIZE]
     __attribute__((aligned(8)));
+
+/* 復号済みTA。WAMRインタプリタは実行中もこのバッファを参照するため
+ * 実行終了まで保持し、終了時にゼロ化する(平文はenclave外に出ない) */
+static uint8_t ta_plain[RIV_TA_PLAIN_MAX] __attribute__((aligned(8)));
 
 /* ---- "env" native imports ----
  * シグネチャの '*~' はWAMRがWasm線形メモリのアドレス検証と
@@ -74,12 +84,14 @@ static NativeSymbol native_symbols[] = {
     { "riv_log", native_riv_log, "($)", NULL },
 };
 
-/* ---- riv attesterフレーム処理ループ(hostのRECV/SEND_FRAME対向) ---- */
+/* ---- riv attesterフレーム処理ループ(hostのRECV/SEND_FRAME対向) ----
+ * report dataは常に96B(nonce ∥ ta_hash ∥ pk_dev)。TA未ロード時は
+ * ta_hash=全ゼロ(プロビジョニングモード)。 */
 
 static uint8_t rxbuf[RIV_KEYSTONE_MAX_FRAME];
 static uint8_t txbuf[RIV_KEYSTONE_MAX_FRAME];
 
-static void serve_attestation(void)
+static void serve_attestation(const uint8_t *ta_hash, const uint8_t *pk_dev)
 {
     printf("pcce-ta runner: attester serving\n");
     for (;;) {
@@ -96,26 +108,23 @@ static void serve_attestation(void)
             continue;
         copy_from_shared(rxbuf, retdata.offset, retdata.size);
 
-        /* 段階1: TAは埋め込み(測定値に含まれる)のためnonceのみ束縛。
-         * 段階2でta_hash/P_devを渡す96Bレイアウトへ移行する。 */
         len = riv_keystone_handle_frame(rxbuf[0], rxbuf + 1,
                                         retdata.size - 1,
-                                        txbuf, sizeof(txbuf), 0, 0);
+                                        txbuf, sizeof(txbuf), ta_hash,
+                                        pk_dev);
         if (len > 0)
             ocall(OCALL_SEND_FRAME, txbuf, (size_t)len, &ret,
                   sizeof(ret));
     }
 }
 
-int main(int argc, char **argv)
+static int run_ta(size_t ta_len, int argc, char **argv)
 {
     RuntimeInitArgs init_args;
     wasm_module_t module = NULL;
     wasm_module_inst_t module_inst = NULL;
     char error_buf[128];
     int ret = 1;
-
-    printf("pcce-ta runner: embedded wasm %u bytes\n", embedded_wasm_len);
 
     memset(&init_args, 0, sizeof(init_args));
     /* enclave内ではOSのアロケータに依存しない固定プールを使う */
@@ -135,9 +144,8 @@ int main(int argc, char **argv)
         goto cleanup_runtime;
     }
 
-    module = wasm_runtime_load((uint8_t *)embedded_wasm,
-                               (uint32_t)embedded_wasm_len,
-                               error_buf, sizeof(error_buf));
+    module = wasm_runtime_load(ta_plain, (uint32_t)ta_len, error_buf,
+                               sizeof(error_buf));
     if (!module) {
         fprintf(stderr, "wasm_runtime_load failed: %s\n", error_buf);
         goto cleanup_runtime;
@@ -163,9 +171,6 @@ int main(int argc, char **argv)
     }
     ret = 0;
 
-    /* TA実行後、同一enclaveのriv attesterとしてVerifierに応答する */
-    serve_attestation();
-
 cleanup_instance:
     wasm_runtime_deinstantiate(module_inst);
 cleanup_module:
@@ -173,4 +178,52 @@ cleanup_module:
 cleanup_runtime:
     wasm_runtime_destroy();
     return ret;
+}
+
+int main(int argc, char **argv)
+{
+    uint8_t sk_dev[32], pk_dev[32];
+    uint8_t ta_hash[32];
+    static const uint8_t zero_hash[32];
+    size_t ta_len = 0;
+    int rc;
+
+    /* enclave内glibcのstdoutはリダイレクト時に全バッファリングされ、
+     * 状態表示がhost側ログに出ない。E2Eがログを判定に使うため無バッファ化 */
+    setvbuf(stdout, NULL, _IONBF, 0);
+
+    if (riv_derive_dev_key(sk_dev, pk_dev) != 0) {
+        fprintf(stderr, "pcce-ta runner: sk_devの導出に失敗\n");
+        return 1;
+    }
+
+    rc = riv_ta_load_from_host(pk_ta_embedded, sk_dev, ta_plain,
+                               sizeof(ta_plain), &ta_len, ta_hash);
+    memset(sk_dev, 0, sizeof(sk_dev)); /* アンラップ後は不要 */
+
+    if (rc < 0) {
+        /* 検証チェーンのどの段で失敗したかを理由コードで示して終了 */
+        fprintf(stderr, "pcce-ta runner: TAロード拒否: %s (code=%d)\n",
+                riv_ta_strerror(-rc), -rc);
+        return 1;
+    }
+
+    if (rc == 1) {
+        printf("pcce-ta runner: TAなし(プロビジョニングモード)\n");
+        serve_attestation(zero_hash, pk_dev);
+        return 0;
+    }
+
+    printf("pcce-ta runner: TAロード成功 (%lu bytes)\n",
+           (unsigned long)ta_len);
+    if (run_ta(ta_len, argc, argv) != 0) {
+        memset(ta_plain, 0, sizeof(ta_plain));
+        return 1;
+    }
+
+    /* TA実行後、同一enclaveのriv attesterとしてVerifierに応答する */
+    serve_attestation(ta_hash, pk_dev);
+
+    memset(ta_plain, 0, sizeof(ta_plain));
+    return 0;
 }
