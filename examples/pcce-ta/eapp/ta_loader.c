@@ -24,8 +24,10 @@
 static uint8_t ta_enc[RIV_TA_ENC_MAX];
 
 int riv_ta_load_from_host(const uint8_t pk_ta[64], const uint8_t sk_dev[32],
+                          uint32_t fw_version_min,
                           uint8_t *plain, size_t plain_cap,
-                          size_t *plain_len, uint8_t ta_hash[32])
+                          size_t *plain_len, uint8_t ta_hash[32],
+                          uint32_t *fw_version)
 {
     uint64_t total = 0;
     uint64_t off;
@@ -62,8 +64,9 @@ int riv_ta_load_from_host(const uint8_t pk_ta[64], const uint8_t sk_dev[32],
         off += retdata.size;
     }
 
-    rc = riv_ta_verify_decrypt(ta_enc, (size_t)total, pk_ta, sk_dev, plain,
-                               plain_cap, plain_len, ta_hash);
+    rc = riv_ta_verify_decrypt(ta_enc, (size_t)total, pk_ta, sk_dev,
+                               fw_version_min, plain, plain_cap, plain_len,
+                               ta_hash, fw_version);
     if (rc != RIV_TA_OK)
         return -rc;
     return 0;

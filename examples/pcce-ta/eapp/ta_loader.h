@@ -8,14 +8,18 @@
 /*
  * OCALL_TA_INFO/TA_CHUNKでhostからta.encを取り寄せ、enclave内バッファへ
  * コピーした上で検証チェーン(riv_ta_verify_decrypt)を通す。
+ * fw_version_min は封印したアンチロールバック状態(既見の最大fw_version)。
+ * ヘッダのfw_versionがこれ未満ならロールバック段(3)で拒否される。
  *
  * 戻り値:
- *   0   ロード成功(plain/plain_len/ta_hashが有効)
+ *   0   ロード成功(plain/plain_len/ta_hash/fw_versionが有効)
  *   1   TAなし=プロビジョニングモード(hostがサイズ0を返した)
  *   <0  -riv_ta_result(検証チェーンの失敗段。呼び出し側でstrerror表示)
  */
 int riv_ta_load_from_host(const uint8_t pk_ta[64], const uint8_t sk_dev[32],
+                          uint32_t fw_version_min,
                           uint8_t *plain, size_t plain_cap,
-                          size_t *plain_len, uint8_t ta_hash[32]);
+                          size_t *plain_len, uint8_t ta_hash[32],
+                          uint32_t *fw_version);
 
 #endif /* PCCE_TA_LOADER_H */

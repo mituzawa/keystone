@@ -1,19 +1,24 @@
 # pcce-ta — PCCE TA (C -> wasm32-wasip1) を enclave内WAMRで実行するexample。
 #
 # 構成 (rivリポジトリ doc/design/wasm-ta.md / keystone-layout.md):
-#   wasm/ta_main.c       TA本体。wasi-sdkで .wasm 化(段階2: 埋め込まず
-#                        ビルド成果物として出力。ta-packで暗号化して配布)
+#   wasm/ta_main.c       TA本体。wasi-sdkで .wasm 化(埋め込まずビルド
+#                        成果物として出力。ta-packで暗号化して配布)。
+#                        rivのriv_proto.cをコンパイルインしAR_REQ/RESPを扱う
+#   wasm/pk_ar_test.h    TA焼き込みのVerifier公開鍵 pk_ar(TEST専用)
 #   eapp/runner_main.c   WAMR + "env" native imports + riv attesterループ
 #   eapp/ta_loader.c     ta.encのhost経由チャンクロード
-#   eapp/dev_key.c       sk_dev/pk_devの決定論的導出(sealing key由来)
-#   host                 riv-attesterのhost(TCP中継+ta.enc給仕)を流用
+#   eapp/drbg.c          sealing key由来DRBG(秘密乱数)
+#   eapp/sealed_state.c  sk_devの生成・封印(sealed blob)、ロールバック状態
+#   host                 riv-attesterのhost(TCP中継+ta.enc給仕+封印状態
+#                        保管+AR中継)を流用
 #
 # 前提: KEYSTONE_BUILD_WASM=ON かつ examples/riv-attester
 # (rivリポジトリの scripts/build-keystone.sh がコピーを配置)が存在すること。
 # 親のCMakeLists.txtが両条件を確認してから add_subdirectory する。
 #
-# runnerはTAの検証・復号にOpenSSL(buildroot stagingのlibcrypto.a)を
-# 静的リンクする。検証・復号のみで乱数を使わないためRNG初期化は不要。
+# runnerはTAの検証・復号・封印にOpenSSL(buildroot stagingのlibcrypto.a)を
+# 静的リンクする。OpenSSLのRNGは使わず(getrandom→SMのsbi_randomは
+# TEST ONLY品質)、乱数はsealing key由来DRBG(drbg.c)から得る。
 #
 # TAは --allow-undefined なしでリンクする(importはimport_module属性で明示。
 # 漏れがあればwasi-sdkのリンクエラーになる)。
@@ -37,9 +42,13 @@ add_custom_command(
           --target=${WASI_TARGET}
           --sysroot=${WASI_SYSROOT}
           -O2
+          -I${riv_dir}/common/include
           "${CMAKE_CURRENT_SOURCE_DIR}/wasm/ta_main.c"
+          "${riv_dir}/common/src/riv_proto.c"
           -o "${ta_wasm}"
   DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/wasm/ta_main.c"
+          "${CMAKE_CURRENT_SOURCE_DIR}/wasm/pk_ar_test.h"
+          "${riv_dir}/common/src/riv_proto.c"
   COMMENT "Building pcce_ta.wasm"
   VERBATIM
 )
@@ -54,9 +63,11 @@ add_executable(${runner_bin}
   eapp/runner_main.c
   eapp/keystone_syscalls.c
   eapp/ta_loader.c
-  eapp/dev_key.c
+  eapp/drbg.c
+  eapp/sealed_state.c
   ${riv_dir}/eapp/attester.c
   ${riv_dir}/common/src/riv_proto.c
+  ${riv_dir}/common/src/riv_crypto.c
   ${riv_dir}/common/src/riv_ta_verify.c)
 target_link_options(${runner_bin} PRIVATE -static)
 target_include_directories(${runner_bin}
