@@ -262,33 +262,38 @@ documentation, and config tweaks.**
    `mit`, `tani`, `ono`, `sa`, `sho` — and `<topic>` describes the work. Existing examples:
    `feature/mit/wasm-micro-runtime`, `feature/tani/quote-program`, `feature/sa/ima-config`.
    Both kebab-case and snake_case topics appear in the history; either is fine.
-3. **Push the branch and open a PR against `master`** (`gh pr create --base master`). What is required
-   is that the change *arrives as a PR* rather than a direct push. **An approving review is not
-   required** — review is welcome, and the author may merge their own PR without one.
+3. **Push the branch and open a PR against `master`** (`gh pr create --base master`). The PR needs
+   **one approving review from the code owner** (`@mituzawa`, per `.github/CODEOWNERS`) before it can
+   be merged; once approved, the author merges it themselves. The repository owner is the only
+   exception: as repository admin they bypass the review requirement on their own PRs (bypass mode is
+   `pull_request`, so this never allows a direct push).
 4. **Do not merge, and do not approve, on the author's behalf.** Opening the PR is where the automated
-   work stops; merging is a deliberate decision for a person to make.
+   work stops; approving and merging are deliberate decisions for a person to make.
 
 ### What GitHub actually enforces
 
-The `Protect default branches` ruleset (id `17383480`, active, no bypass actors) covers
-`~DEFAULT_BRANCH` — i.e. `master` only, *not* `dev`:
+The `Protect default branches` ruleset (id `17383480`, active) covers `~DEFAULT_BRANCH` — i.e.
+`master` only, *not* `dev`:
 
 | | |
 |---|---|
 | Direct push to `master` | blocked — changes must arrive via PR |
 | Force push / non-fast-forward | blocked |
 | Branch deletion | blocked |
-| **Required approving reviews** | **0** — a PR can be self-merged with no review |
+| **Required approving reviews** | **1**, and it must come from a code owner |
+| Code owners | `.github/CODEOWNERS`: `* @mituzawa` — every path is owned by the repository owner |
+| Stale reviews | dismissed on push — a new push after approval needs a fresh approval |
+| Bypass actors | `Repository admin` role, mode `pull_request` — the owner can merge their own PRs unreviewed, but still cannot push directly |
 
-The platform therefore guarantees *"it went through a PR"*, not *"someone reviewed it"* — and that is
-the intended policy, not a gap. An unreviewed PR is legitimately mergeable by its author, so a missing
-approval is not a reason to hold a merge. `gh pr view --json reviewDecision,reviews` still tells you
-what review a PR actually got, which is worth reporting even though nothing depends on it.
+The platform therefore guarantees that nothing lands on `master` without the repository owner's
+approval (or the owner merging it themselves). A teammate's PR with no approval, or whose approval was
+dismissed by a later push, is **not** mergeable; `gh pr view --json reviewDecision,reviews` shows
+the current state. In a personal repository only the owner holds the admin role, so the bypass entry
+covers exactly one account.
 
-Classic branch protection is not configured; the ruleset is the only server-side control. The zero
-approval requirement is deliberate, so this document and the server agree. If the team ever wants
-review enforced, raise `required_approving_review_count` on that ruleset and update the table above —
-rather than documenting a stricter rule here than the server applies.
+Classic branch protection is not configured; the ruleset is the only server-side control. If the
+policy changes, update the ruleset **and** this table together — never document a rule here that the
+server does not apply, or vice versa.
 
 ### Enforcement
 
@@ -313,8 +318,9 @@ exceptional situations, not a normal step.
 Claude Code specifics:
 
 - Commit and push only when explicitly asked — but when asked while on `master`, branch first and say so.
-- If asked to merge a PR, merging an unreviewed one is fine — that is the policy here, so a missing
-  approval is not a reason to stop. Merge only when asked, and never approve on the author's behalf.
+- If asked to merge a PR, check `gh pr view --json reviewDecision` first: a teammate's PR needs an
+  `APPROVED` decision, otherwise the server rejects the merge — report that rather than working around
+  it. Merge only when asked, and never approve on the author's behalf.
 - Never reach for `--no-verify`, a force push to `master`, or `core.hooksPath` unset to get around a
   blocked operation. If a hook fires, report it and let the user decide.
 
